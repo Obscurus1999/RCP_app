@@ -23,45 +23,53 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlin.math.abs
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
 
 class MainActivity : ComponentActivity() {
+
+    private var animationKey = 0 // Variable para controlar reinicio de animación
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            var animationKey by remember { mutableStateOf(0) }
             val onResetAnimation = { animationKey++ }
 
             Box(modifier = Modifier.fillMaxSize()) {
                 RcpAnimationWithCounter(animationKey = animationKey)
 
-                // Botón para ir a segunda ventana
                 val context = LocalContext.current
                 Button(
                     onClick = {
-                        onResetAnimation()
+                        onResetAnimation() // detiene la animación antes de ir a la segunda activity
                         context.startActivity(Intent(context, SecondActivity::class.java))
                     },
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .padding(16.dp)
                 ) {
-                    Text("Ir a ventana 2")
+                    Text("Menú")
                 }
             }
         }
+    }
+
+    // Cuando la Activity vuelve al frente, reiniciamos la animación
+    override fun onResume() {
+        super.onResume()
+        animationKey++  // esto provoca que el LaunchedEffect en Compose se reinicie
     }
 }
 
 @Composable
 fun RcpAnimationWithCounter(animationKey: Int) {
-    val circleRadius = 30f
-    val centerRadius = 40f
-    val rhythmBpm = 110f
-    val flashDuration = 150L
+    val lifecycleOwner = LocalLifecycleOwner.current
     val context = LocalContext.current
     val mediaPlayer = remember { MediaPlayer.create(context, R.raw.beep) }
-    DisposableEffect(Unit) { onDispose { mediaPlayer?.release() } }
 
     var circles by remember { mutableStateOf(listOf<Pair<Float, Boolean>>()) }
     var centralFlash by remember { mutableStateOf(false) }
@@ -73,25 +81,48 @@ fun RcpAnimationWithCounter(animationKey: Int) {
         targetValue = if (centralFlash) Color(0xFFFF8800) else Color.White
     )
 
+    // Job de animación que se reinicia al volver
+    val running = remember { mutableStateOf(true) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when(event) {
+                Lifecycle.Event.ON_PAUSE -> running.value = false
+                Lifecycle.Event.ON_RESUME -> running.value = true
+                Lifecycle.Event.ON_DESTROY -> mediaPlayer.release()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer); mediaPlayer.release() }
+    }
+
     LaunchedEffect(animationKey) {
-        // Reiniciar todos los estados
+        // Reset de animación cada vez que animationKey cambia
         circles = listOf()
         centralFlash = false
         timeSinceLastCircle = 0f
         beatCount = 0
 
-        if (canvasWidth <= 0f) return@LaunchedEffect
+        while (canvasWidth <= 0f) delay(20)
 
         val fps = 60
         val deltaTime = 1000f / fps
-        val intervalMs = 60_000f / rhythmBpm
-        val startX = -circleRadius * 2f
+        val rhythmBpm = 110f
+        val flashDuration = 150L
+        val startX = -30f
         val centerX = canvasWidth / 2f
         val distanceToCenter = centerX - startX
+        val intervalMs = 60_000f / rhythmBpm
         val framesPerInterval = intervalMs / deltaTime
         val speedPerFrame = distanceToCenter / framesPerInterval
 
         while (true) {
+            if (!running.value) {
+                delay(50) // Pausado
+                continue
+            }
+
             timeSinceLastCircle += deltaTime
 
             if (timeSinceLastCircle >= intervalMs) {
@@ -103,30 +134,27 @@ fun RcpAnimationWithCounter(animationKey: Int) {
 
             circles = circles.map { (x, triggered) ->
                 if (!triggered && x >= centerX) {
-                    try { mediaPlayer?.start() } catch (_: Exception) {}
+                    try { mediaPlayer.start() } catch (_: Exception) {}
                     centralFlash = true
                     beatCount++
-                    kotlinx.coroutines.delay(flashDuration)
+                    delay(flashDuration)
                     centralFlash = false
                     Pair(x, true)
                 } else Pair(x, triggered)
             }
 
-            // Limpiar fuera de pantalla
-            circles = circles.filter { it.first < canvasWidth + circleRadius * 2 }
+            circles = circles.filter { it.first < canvasWidth + 60f }
 
-            kotlinx.coroutines.delay(deltaTime.toLong())
+            delay(deltaTime.toLong())
         }
     }
 
+    // Canvas
     Canvas(modifier = Modifier.fillMaxSize()) {
         canvasWidth = size.width
         val centerY = size.height / 2f
 
-        // Fondo blanco
-        drawRect(color = Color.White, size = size)
-
-        // Línea horizontal + flecha
+        drawRect(Color.White, size = size)
         val lineEnd = Offset(size.width - 20f, centerY)
         drawLine(Color.Gray, Offset(0f, centerY), lineEnd, strokeWidth = 6f)
         val arrowSize = 20f
@@ -137,22 +165,20 @@ fun RcpAnimationWithCounter(animationKey: Int) {
             close()
         }, color = Color.Gray)
 
-        // Círculo central con borde y parpadeo
-        drawCircle(Color.Black, centerRadius, Offset(canvasWidth / 2f, centerY), style = Stroke(4f))
-        drawCircle(centralColor, centerRadius - 2f, Offset(canvasWidth / 2f, centerY))
+        drawCircle(Color.Black, 40f, Offset(canvasWidth / 2f, centerY), style = Stroke(4f))
+        drawCircle(centralColor, 38f, Offset(canvasWidth / 2f, centerY))
 
-        // Círculos móviles
         circles.forEach { (x, _) ->
-            drawCircle(Color.Black, circleRadius, Offset(x, centerY), style = Stroke(3f))
-            drawCircle(Color.Red, circleRadius - 2f, Offset(x, centerY))
+            drawCircle(Color.Black, 30f, Offset(x, centerY), style = Stroke(3f))
+            drawCircle(Color.Red, 28f, Offset(x, centerY))
         }
     }
 
-    // Contador de latidos arriba
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-        Text("Latidos: $beatCount", fontSize = 24.sp, color = Color.Black, modifier = Modifier.padding(top = 16.dp))
+        Text("Compresiones: $beatCount", fontSize = 24.sp, color = Color.Black, modifier = Modifier.padding(top = 16.dp))
     }
 }
+
 
 
 
