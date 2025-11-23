@@ -24,6 +24,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import kotlinx.coroutines.delay
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.content.Context
+import android.os.Build
 
 class MainActivity : ComponentActivity() {
 
@@ -97,6 +101,9 @@ fun RcpAnimationWithCounter(animationKey: Int) {
 
     val running = remember { mutableStateOf(true) }
 
+    // Vibrator
+    val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when(event) {
@@ -125,6 +132,7 @@ fun RcpAnimationWithCounter(animationKey: Int) {
         val deltaTime = 1000f / fps
         val rhythmBpm = 110f
         val flashDuration = 150L
+        val vibrationDuration = flashDuration
         val startX = -30f
         val centerX = canvasWidth / 2f
         val distanceToCenter = centerX - startX
@@ -150,6 +158,15 @@ fun RcpAnimationWithCounter(animationKey: Int) {
             circles = circles.map { (x, triggered) ->
                 if (!triggered && x >= centerX) {
                     try { mediaPlayer.start() } catch (_: Exception) {}
+
+                    // 🔵 VIBRACIÓN
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        vibrator.vibrate(VibrationEffect.createOneShot(vibrationDuration, VibrationEffect.DEFAULT_AMPLITUDE))
+                    } else {
+                        @Suppress("DEPRECATION")
+                        vibrator.vibrate(vibrationDuration)
+                    }
+
                     centralFlash = true
                     beatCount++
                     delay(flashDuration)
