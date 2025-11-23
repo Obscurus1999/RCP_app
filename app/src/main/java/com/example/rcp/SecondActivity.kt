@@ -27,7 +27,7 @@ class SecondActivity : ComponentActivity() {
                     verticalArrangement = Arrangement.Center
                 ) {
 
-                    Text("Esta es la segunda ventana", fontSize = 24.sp)
+                    Text("Menú", fontSize = 24.sp)
 
                     Spacer(modifier = Modifier.height(30.dp))
 
@@ -43,6 +43,31 @@ class SecondActivity : ComponentActivity() {
                         Text("Instrucciones RCP")
                     }
 
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // 🟩 NUEVO: Botón volver al MainActivity
+                    Button(
+                        onClick = {
+                            val intent = Intent(this@SecondActivity, MainActivity::class.java)
+                            intent.putExtra("forceMain", true) // fuerza ir al asistente
+                            startActivity(intent)
+                            finish()
+                        }
+                    ) {
+                        Text("Asistente RCP")
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // 🟦 BOTÓN AJUSTES
+                    Button(
+                        onClick = {
+                            val intent = Intent(context, SettingsActivity::class.java)
+                            context.startActivity(intent)
+                        }
+                    ) {
+                        Text("Ajustes")
+                    }
                 }
             }
         }

@@ -56,13 +56,14 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-    implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("com.github.chrisbanes:PhotoView:2.3.0")
-    implementation("com.otaliastudios:zoomlayout:1.9.0")
-    implementation("androidx.recyclerview:recyclerview:1.3.2")
-    implementation("androidx.viewpager2:viewpager2:1.1.0")
-    implementation("androidx.constraintlayout:constraintlayout:2.2.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
+    implementation(libs.androidx.appcompat)
+    implementation(libs.photoview)
+    implementation(libs.zoomlayout)
+    implementation(libs.androidx.recyclerview)
+    implementation(libs.androidx.viewpager2)
+    implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+
 
 }

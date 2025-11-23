@@ -9,7 +9,6 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,16 +18,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
-import kotlin.math.abs
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.LifecycleOwner
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
 
@@ -36,23 +31,42 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent {
-            val onResetAnimation = { animationKey++ }
 
+        // Solo redirigir si es el primer lanzamiento
+        if (savedInstanceState == null) {
+            val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+            val start = prefs.getString("start_screen", "main")
+            val forceMain = intent.getBooleanExtra("forceMain", false)
+
+            if (!forceMain && start == "second") {
+                startActivity(Intent(this, SecondActivity::class.java))
+                finish()
+                return
+            }
+        }
+
+        setContent {
             Box(modifier = Modifier.fillMaxSize()) {
+                // Animación principal
                 RcpAnimationWithCounter(animationKey = animationKey)
 
                 val context = LocalContext.current
-                Button(
-                    onClick = {
-                        onResetAnimation() // detiene la animación antes de ir a la segunda activity
-                        context.startActivity(Intent(context, SecondActivity::class.java))
-                    },
+                Column(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .padding(16.dp)
                 ) {
-                    Text("Menú")
+                    Button(
+                        onClick = {
+                            // Reinicia la animación antes de ir al menú
+                            animationKey++
+                            context.startActivity(Intent(context, SecondActivity::class.java))
+                            finish()
+                        },
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    ) {
+                        Text("Menú")
+                    }
                 }
             }
         }
@@ -61,7 +75,7 @@ class MainActivity : ComponentActivity() {
     // Cuando la Activity vuelve al frente, reiniciamos la animación
     override fun onResume() {
         super.onResume()
-        animationKey++  // esto provoca que el LaunchedEffect en Compose se reinicie
+        animationKey++
     }
 }
 
@@ -73,21 +87,23 @@ fun RcpAnimationWithCounter(animationKey: Int) {
 
     var circles by remember { mutableStateOf(listOf<Pair<Float, Boolean>>()) }
     var centralFlash by remember { mutableStateOf(false) }
-    var timeSinceLastCircle by remember { mutableStateOf(0f) }
-    var canvasWidth by remember { mutableStateOf(0f) }
-    var beatCount by remember { mutableStateOf(0) }
+    var timeSinceLastCircle by remember { mutableFloatStateOf(0f) }
+    var canvasWidth by remember { mutableFloatStateOf(0f) }
+    var beatCount by remember { mutableIntStateOf(0) }
 
     val centralColor by animateColorAsState(
         targetValue = if (centralFlash) Color(0xFFFF8800) else Color.White
     )
 
-    // Job de animación que se reinicia al volver
     val running = remember { mutableStateOf(true) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when(event) {
-                Lifecycle.Event.ON_PAUSE -> running.value = false
+                Lifecycle.Event.ON_PAUSE -> {
+                    running.value = false
+                    if (mediaPlayer.isPlaying) mediaPlayer.pause()
+                }
                 Lifecycle.Event.ON_RESUME -> running.value = true
                 Lifecycle.Event.ON_DESTROY -> mediaPlayer.release()
                 else -> {}
@@ -98,7 +114,6 @@ fun RcpAnimationWithCounter(animationKey: Int) {
     }
 
     LaunchedEffect(animationKey) {
-        // Reset de animación cada vez que animationKey cambia
         circles = listOf()
         centralFlash = false
         timeSinceLastCircle = 0f
@@ -119,7 +134,7 @@ fun RcpAnimationWithCounter(animationKey: Int) {
 
         while (true) {
             if (!running.value) {
-                delay(50) // Pausado
+                delay(50)
                 continue
             }
 
@@ -178,18 +193,3 @@ fun RcpAnimationWithCounter(animationKey: Int) {
         Text("Compresiones: $beatCount", fontSize = 24.sp, color = Color.Black, modifier = Modifier.padding(top = 16.dp))
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

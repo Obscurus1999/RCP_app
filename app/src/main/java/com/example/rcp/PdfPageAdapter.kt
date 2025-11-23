@@ -4,8 +4,6 @@ import android.graphics.Bitmap
 import android.graphics.Rect
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
-import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.github.chrisbanes.photoview.PhotoView
